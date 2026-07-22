@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palmares: A Jornada da Liberdade - Edição Escolar (V3)</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #0a0f0a; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; overflow: hidden; }
+        #game-container { position: relative; width: 800px; height: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 4px solid #ffca28; border-radius: 12px; background: #000; overflow: hidden;}
+        canvas { display: block; }
+        
+        .overlay-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 20, 10, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 30px; box-sizing: border-box; z-index: 10; }
+        h1 { color: #ffca28; margin-bottom: 10px; font-size: 26px; text-transform: uppercase; text-shadow: 2px 2px black;}
+        h2 { color: #ff8f00; margin-top: 0; }
+        p { font-size: 15px; max-width: 650px; line-height: 1.6; color: #e0e0e0; }
+        
+        .btn { background-color: #d84315; color: white; border: none; padding: 12px 28px; font-size: 15px; font-weight: bold; cursor: pointer; margin: 10px; border-radius: 6px; box-shadow: 0 4px #bf360c; transition: 0.1s; }
+        .btn:hover { background-color: #ff5722; transform: translateY(-2px); }
+        
+        .char-select-container { display: flex; gap: 12px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+        .char-card { background: #1b5e20; padding: 12px; border: 3px solid #ffca28; border-radius: 10px; cursor: pointer; width: 160px; transition: 0.2s; }
+        .char-card:hover { background: #2e7d32; transform: scale(1.05); }
+        .char-card h3 { margin: 5px 0; color: #fff; }
+        
+        .quiz-options { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 550px; margin-top: 15px; }
+        .quiz-btn { background: #37474f; color: white; border: 2px solid #ffca28; padding: 10px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 14px; transition: 0.2s;}
+        .quiz-btn:hover { background: #546e7a; border-color: #fff;}
+        
+        #hud { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 6px; border: 1px solid #ffca28; font-weight: bold; font-size: 14px; color: #ffd54f; pointer-events: none; display: none; }
+        #warning-msg { position: absolute; top: 80px; width: 100%; text-align: center; color: #ff5252; font-weight: bold; font-size: 18px; text-shadow: 2px 2px 0 #000; display: none; pointer-events: none;}
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">Fase: 1 | Herói: - | Pontos: 0 | Vidas: 1 | Item: Nenhum</div>
+    <div id="warning-msg">Você precisa da Lança para prosseguir!</div>
+
+    <div id="screen-select" class="overlay-screen">
+        <h1>Palmares: A Jornada da Liberdade</h1>
+        <p>Escolha um líder da resistência:</p>
+        <div class="char-select-container">
+            <div class="char-card" onclick="selectCharacter('Zumbi')"><h3>Zumbi</h3><p style="font-size:11px; color:#ffd54f;">Super Velocidade</p></div>
+            <div class="char-card" onclick="selectCharacter('Dandara')"><h3>Dandara</h3><p style="font-size:11px; color:#ffd54f;">Anula Armadilhas</p></div>
+            <div class="char-card" onclick="selectCharacter('Ganga Zumba')"><h3>Ganga Zumba</h3><p style="font-size:11px; color:#ffd54f;">+1 Vida Extra</p></div>
+            <div class="char-card" onclick="selectCharacter('Acotirene')"><h3>Acotirene</h3><p style="font-size:11px; color:#ffd54f;">Pontos em Dobro</p></div>
+        </div>
+    </div>
+
+    <div id="screen-dialog" class="overlay-screen" style="display: none;">
+        <h2 id="dialog-title">Fase X</h2>
+        <p id="dialog-text">História da fase...</p>
+        <button class="btn" onclick="startCurrentLevel()">Entrar na Fase ➔</button>
+    </div>
+
+    <div id="screen-quiz" class="overlay-screen" style="display: none;">
+        <h2>Desafio Histórico!</h2>
+        <h3 id="quiz-question" style="max-width:600px; color:#ffd54f;">Pergunta?</h3>
+        <div class="quiz-options" id="quiz-answers"></div>
+    </div>
+
+    <div id="screen-gameover" class="overlay-screen" style="display: none;">
+        <h1 id="gameover-title">Fim de Jogo</h1>
+        <p id="gameover-text"></p>
+        <button class="btn" onclick="location.reload()">Recomeçar Jornada ⟲</button>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const hud = document.getElementById('hud');
+    const warningMsg = document.getElementById('warning-msg');
+
+    let gameState = 'SELECT'; 
+    let score = 0, currentLevel = 1, selectedChar = '', lives = 1;
+    let standingTimer = 0, hasSpear = false;
+
+    // O jogador agora é ligeiramente maior para acomodar a pixel art
+    const player = { x: 50, y: 300, width: 34, height: 55, vx: 0, vy: 0, speed: 5, jumpForce: 12, grounded: false };
+    const boss = { x: 1200, y: 300, width: 38, height: 60, speed: 3.5, active: false, facingLeft: true };
+
+    const camera = { x: 0, width: 800 };
+    const worldWidth = 2000;
+    const keys = {};
+
+    let platforms = [], items = [], hazards = [];
+
+    const levelData = {
+        1: {
+            title: "Fase 1: Mocambo de Aqualtune (A Floresta)",
+            text: "CUIDADO: Se você ficar muito tempo parado, será sequestrado! Mantenha-se em movimento na mata, colete recursos e avance.",
+            platforms: [{x:0, y:400, w:800, h:50}, {x:900, y:400, w:1100, h:50}, {x:250, y:290, w:150, h:15}, {x:500, y:200, w:150, h:15}, {x:1100, y:280, w:200, h:15}],
+            items: [{x:320, y:240, type:'Milho', val:10}, {x:570, y:150, type:'Ferramenta', val:50}, {x:1200, y:220, type:'Milho', val:10}],
+            hazards: [{x:650, y:380, w:40, h:20}, {x:1400, y:380, w:40, h:20}]
+        },
+        2: {
+            title: "Fase 2: Mocambo de Subupira (As Forjas)",
+            text: "Sua missão é RESGATAR as PESSOAS capturadas na área montanhosa. O terreno é pedregoso e cheio de armadilhas!",
+            platforms: [{x:0, y:400, w:600, h:50}, {x:750, y:350, w:500, h:100}, {x:1400, y:400, w:600, h:50}, {x:200, y:280, w:120, h:15}, {x:900, y:220, w:150, h:15}, {x:1550, y:270, w:150, h:15}],
+            items: [{x:250, y:230, type:'Pessoa', val:100}, {x:950, y:170, type:'Pessoa', val:100}, {x:1600, y:210, type:'Pessoa', val:100}],
+            hazards: [{x:500, y:380, w:40, h:20}, {x:1100, y:330, w:40, h:20}]
+        },
+        3: {
+            title: "Fase 3: Cerca Real dos Macacos (A Vila)",
+            text: "Encontre a LANÇA escondida no fim da vila. Ela é obrigatória para derrotar o inimigo na próxima fase!",
+            platforms: [{x:0, y:400, w:700, h:50}, {x:850, y:400, w:400, h:50}, {x:1400, y:400, w:600, h:50}, {x:300, y:280, w:200, h:15}, {x:1000, y:280, w:150, h:15}, {x:1500, y:250, w:150, h:15}],
+            items: [{x:400, y:220, type:'Milho', val:10}, {x:1050, y:220, type:'Milho', val:10}, {x:1600, y:350, type:'Lança', val:200}],
+            hazards: [{x:550, y:380, w:40, h:20}, {x:1650, y:380, w:40, h:20}]
+        },
+        4: {
+            title: "Fase 4: O Confronto Final",
+            text: "USE A LANÇA! Encoste no Capitão do Mato segurando a lança sagrada para salvar Palmares!",
+            platforms: [{x:0, y:400, w:2000, h:50}], items: [], hazards: []
+        }
+    };
+
+    const quizData = {
+        1: { q: "Quem foi a líder ancestral africana que fugiu da escravidão e ajudou a fundar Palmares?", a: ["Dandara", "Aqualtune", "Anastácia", "Luísa Mahin"], correct: 1 },
+        2: { q: "O Mocambo de Subupira destacou-se por qual atividade crucial?", a: ["Plantações de café", "Produção e forja de ferro", "Comércio com a Europa", "Garimpo de ouro"], correct: 1 },
+        3: { q: "Onde ficava localizada a Cerca Real dos Macacos, capital de Palmares?", a: ["Serra da Barriga (Alagoas)", "Sertão da Bahia", "Litoral de Pernambuco", "Florestas de Minas Gerais"], correct: 0 },
+        4: { q: "O Quilombo dos Palmares durou quase 100 anos, tornando-se o maior símbolo de:", a: ["Submissão pacífica", "Resistência, liberdade e luta", "Acordo comercial", "Pirataria colonial"], correct: 1 }
+    };
+
+    function selectCharacter(name) {
+        selectedChar = name;
+        // RESET DE ATRIBUTOS
+        player.speed = 5; player.jumpForce = 12; lives = 1;
+
+        // NOVOS PODERES APLICADOS
+        if(name === 'Zumbi') { player.speed = 8.5; } // Zumbi: Velocidade
+        else if(name === 'Dandara') { /* Habilidade programada na colisão de espinhos */ } 
+        else if(name === 'Ganga Zumba') { lives = 2; } 
+        else if(name === 'Acotirene') { /* Habilidade na coleta de itens */ }
+
+        document.getElementById('screen-select').style.display = 'none';
+        showLevelIntro();
+    }
+
+    function showLevelIntro() {
+        gameState = 'DIALOG';
+        document.getElementById('screen-dialog').style.display = 'flex';
+        document.getElementById('dialog-title').innerText = levelData[currentLevel].title;
+        document.getElementById('dialog-text').innerText = levelData[currentLevel].text;
+        hud.style.display = 'none';
+        warningMsg.style.display = 'none';
+    }
+
+    function startCurrentLevel() {
+        document.getElementById('screen-dialog').style.display = 'none';
+        hud.style.display = 'block';
+        
+        const lvl = levelData[currentLevel];
+        platforms = lvl.platforms;
+        hazards = lvl.hazards;
+        items = lvl.items.map(i => ({...i, collected: false}));
+
+        player.x = 50; player.y = 300; player.vx = 0; player.vy = 0;
+        standingTimer = 0;
+
+        if (currentLevel === 4) { boss.active = true; boss.x = 700; boss.y = 345; } 
+        else { boss.active = false; }
+
+        updateHUD();
+        gameState = 'PLAYING';
+        gameLoop();
+    }
+
+    function showQuiz() {
+        gameState = 'QUIZ';
+        document.getElementById('screen-quiz').style.display = 'flex';
+        const qData = quizData[currentLevel];
+        document.getElementById('quiz-question').innerText = qData.q;
+        const answersContainer = document.getElementById('quiz-answers');
+        answersContainer.innerHTML = '';
+        qData.a.forEach((ans, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-btn';
+            btn.innerText = `${index + 1}) ${ans}`;
+            btn.onclick = () => evaluateQuiz(index);
+            answersContainer.appendChild(btn);
+        });
+    }
+
+    function evaluateQuiz(selectedIndex) {
+        document.getElementById('screen-quiz').style.display = 'none';
+        if (selectedIndex === quizData[currentLevel].correct) {
+            if (currentLevel < 4) { currentLevel++; showLevelIntro(); } 
+            else { endGame(true); }
+        } else {
+            alert("Resposta incorreta! Tente a fase novamente.");
+            startCurrentLevel();
+        }
+    }
+
+    function playerHit(message = "Você foi atingido!") {
+        lives--;
+        updateHUD();
+        if (lives <= 0) {
+            alert(message);
+            endGame(false);
+        } else {
+            alert(message + " Sua resiliência te manteve de pé.");
+            player.x = 50; player.y = 300;
+        }
+    }
+
+    function endGame(won) {
+        gameState = 'GAMEOVER';
+        document.getElementById('screen-gameover').style.display = 'flex';
+        hud.style.display = 'none'; warningMsg.style.display = 'none';
+        if(won) {
+            document.getElementById('gameover-title').innerText = "Vitória de Palmares!";
+            document.getElementById('gameover-text').innerText = `O povo celebra! Pontuação Final: ${score} pontos.`;
+        } else {
+            document.getElementById('gameover-title').innerText = "Missão Falhou!";
+            document.getElementById('gameover-text').innerText = "Palmares precisa de você. Tente novamente!";
+        }
+    }
+
+    function updateHUD() {
+        let itemStatus = hasSpear ? "🔱 Lança Sagrada" : "Nenhum";
+        hud.innerText = `Fase: ${currentLevel}/4 | Herói: ${selectedChar} | Pontos: ${score} | Vidas: ${lives} | Item: ${itemStatus}`;
+    }
+
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    // --- ARTE: DESENHO DETALHADO DOS PERSONAGENS (BLOCK ART) ---
+    /* DICA: Para usar imagens reais do Pinterest no futuro, apague os ctx.fillRect desta função
+       e use ctx.drawImage(suaImagem, x, y, width, height). Exemplo: 
+       let imgDandara = new Image(); imgDandara.src = "LINK_DA_IMAGEM"; */
+       
+    function drawBlockArtHero(x, y, char, isFacingLeft) {
+        ctx.save();
+        if(isFacingLeft) {
+            ctx.translate(x + player.width, y);
+            ctx.scale(-1, 1);
+            x = 0; y = 0;
+        }
+
+        // Base da pele (Marrom Escuro)
+        const skinColor = '#4e342e';
+        
+        // --- ZUMBI ---
+        if(char === 'Zumbi') {
+            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y, 14, 14); // Cabeça
+            ctx.fillStyle = '#b71c1c'; ctx.fillRect(x+10, y+2, 14, 4); // Faixa Vermelha na cabeça
+            ctx.fillStyle = '#111'; ctx.fillRect(x+10, y, 14, 2); // Cabelo curto
+            ctx.fillStyle = skinColor; ctx.fillRect(x+8, y+14, 18, 20); // Tronco sem camisa
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+8, y+34, 18, 20); // Calça branca
+            // Lança/Vara estilizada nas costas
+            ctx.fillStyle = '#795548'; ctx.fillRect(x+4, y+5, 4, 35);
+        }
+        // --- DANDARA ---
+        else if(char === 'Dandara') {
+            ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x+17, y+8, 12, 0, Math.PI*2); ctx.fill(); // Cabelo Black Power gigante
+            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+4, 14, 10); // Rosto
+            ctx.fillStyle = '#fbc02d'; ctx.fillRect(x+8, y+14, 18, 16); // Blusa amarela
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+6, y+30, 22, 24); // Calça capoeira larga
+            // Faixa na cintura
+            ctx.fillStyle = '#1b5e20'; ctx.fillRect(x+6, y+28, 22, 4);
+        }
+        // --- GANGA ZUMBA ---
+        else if(char === 'Ganga Zumba') {
+            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+6, 14, 12); // Rosto
+            ctx.fillStyle = '#fbc02d'; ctx.fillRect(x+8, y, 18, 6); // Coroa/Adorno dourado
+            ctx.fillStyle = '#d32f2f'; ctx.fillRect(x+6, y+18, 22, 30); // Túnica real vermelha
+            ctx.fillStyle = '#ffca28'; ctx.fillRect(x+14, y+18, 6, 30); // Detalhe central dourado da roupa
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+10, y+48, 14, 6); // Calça
+        }
+        // --- ACOTIRENE ---
+        else if(char === 'Acotirene') {
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+8, y, 18, 12); // Turbante Branco volumoso
+            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+12, 14, 8); // Rosto
+            ctx.fillStyle = '#8e24aa'; ctx.fillRect(x+4, y+20, 26, 34); // Vestido roxo longo
+            ctx.fillStyle = '#ab47bc'; ctx.fillRect(x+4, y+45, 26, 9); // Barra do vestido
+        }
+
+        // Olhos fixos para todos
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x+18, y+(char==='Acotirene'?14:char==='Ganga Zumba'?10:4), 4, 4); // Olho
+        
+        ctx.restore();
+
+        // Nome do Herói
+        ctx.fillStyle = '#ffffff'; ctx.font = '10px Arial'; ctx.fillText(char, (isFacingLeft?0:x) - 5, y - 5);
+    }
+
+    function drawBossArt(x, y, isFacingLeft) {
+        ctx.save();
+        if(isFacingLeft) { ctx.translate(x + boss.width, y); ctx.scale(-1, 1); x = 0; y = 0; }
+        
+        // Capitão do Mato: Uniforme Colonial
+        ctx.fillStyle = '#37474f'; ctx.fillRect(x+2, y-5, 34, 10); // Chapéu aba larga
+        ctx.fillStyle = '#ffccbc'; ctx.fillRect(x+10, y+5, 18, 14); // Rosto pele clara
+        ctx.fillStyle = '#111'; ctx.fillRect(x+10, y+15, 18, 5); // Barba
+        ctx.fillStyle = '#1a237e'; ctx.fillRect(x+6, y+19, 26, 26); // Casacão azul marinho
+        ctx.fillStyle = '#fff'; ctx.fillRect(x+14, y+19, 10, 26); // Camisa branca interna
+        ctx.fillStyle = '#212121'; ctx.fillRect(x+8, y+45, 22, 15); // Botas de couro preto
+        
+        // Olho bravo
+        ctx.fillStyle = '#b71c1c'; ctx.fillRect(x+22, y+9, 4, 3);
+        
+        ctx.restore();
+        ctx.fillStyle = '#ff5252'; ctx.font = 'bold 11px Arial'; ctx.fillText("CAPITÃO", (isFacingLeft?0:x) - 5, y - 10);
+    }
+
+    // --- ARTE: CENÁRIOS DETALHADOS ---
+    function drawBackground(cameraX) {
+        if(currentLevel === 1) { // FLORESTA
+            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#1b5e20'); grad.addColorStop(1, '#aed581');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Árvores em parallax simples
+            ctx.fillStyle = '#3e2723';
+            for(let i=0; i<20; i++) {
+                let treeX = (i * 150) - (cameraX * 0.5);
+                ctx.fillRect(treeX, 0, 40, 400); // Tronco
+                ctx.fillStyle = '#2e7d32';
+                ctx.beginPath(); ctx.arc(treeX+20, 100, 80, 0, Math.PI*2); ctx.fill(); // Folhas
+                ctx.fillStyle = '#3e2723';
+            }
+        } 
+        else if(currentLevel === 2) { // MONTANHAS E FORJAS
+            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#3e2723'); grad.addColorStop(1, '#d84315');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Montanhas cinzas
+            ctx.fillStyle = '#455a64';
+            ctx.beginPath();
+            for(let i=0; i<10; i++) {
+                let mx = (i * 300) - (cameraX * 0.3);
+                ctx.moveTo(mx, 400); ctx.lineTo(mx+150, 100); ctx.lineTo(mx+300, 400);
+            }
+            ctx.fill();
+        }
+        else if(currentLevel === 3) { // VILA / NOITE
+            ctx.fillStyle = '#0d47a1'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Estrelas
+            ctx.fillStyle = '#fff';
+            for(let i=0; i<50; i++) { ctx.fillRect((i*97)%canvas.width, (i*31)%250, 2, 2); }
+            // Paliçadas (Muro de madeira)
+            ctx.fillStyle = '#5d4037';
+            for(let i=0; i<40; i++) {
+                let px = (i * 60) - (cameraX * 0.8);
+                ctx.fillRect(px, 250, 20, 150);
+                ctx.beginPath(); ctx.moveTo(px, 250); ctx.lineTo(px+10, 220); ctx.lineTo(px+20, 250); ctx.fill();
+            }
+        }
+        else if(currentLevel === 4) { // CONFRONTO - PÔR DO SOL
+            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#b71c1c'); grad.addColorStop(1, '#ff9800');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Sol gigante
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath(); ctx.arc(400, 250, 150, 0, Math.PI*2); ctx.fill();
+        }
+    }
+
+    function update() {
+        if (gameState !== 'PLAYING') return;
+
+        player.vy += 0.6; // Gravidade
+
+        if (keys['ArrowRight'] || keys['KeyD']) player.vx = player.speed;
+        else if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -player.speed;
+        else player.vx = 0;
+
+        if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.grounded) {
+            player.vy = -player.jumpForce;
+            player.grounded = false;
+        }
+
+        // FASE 1: Se ficar parado sequestra
+        if (currentLevel === 1) {
+            if (player.vx === 0 && player.grounded) {
+                standingTimer++;
+                if (standingTimer > 180) { playerHit("Você ficou muito tempo parado e foi capturado!"); standingTimer = 0; }
+            } else { standingTimer = 0; }
+        }
+
+        player.x += player.vx;
+        player.y += player.vy;
+
+        if (player.x < 0) player.x = 0;
+        if (player.y > canvas.height) { playerHit("Você caiu no abismo!"); return; }
+
+        player.grounded = false;
+
+        platforms.forEach(plat => {
+            if (player.x < plat.x + plat.w && player.x + player.width > plat.x && player.y < plat.y + plat.h && player.y + player.height > plat.y) {
+                if (player.vy > 0 && player.y + player.height - player.vy <= plat.y + 12) {
+                    player.y = plat.y - player.height; player.vy = 0; player.grounded = true;
+                }
+            }
+        });
+
+        items.forEach(item => {
+            if (!item.collected && player.x < item.x + 20 && player.x + player.width > item.x - 20 && player.y < item.y + 20 && player.y + player.height > item.y - 20) {
+                item.collected = true;
+                if (item.type === 'Lança') { hasSpear = true; }
+                let finalVal = (selectedChar === 'Acotirene') ? item.val * 2 : item.val;
+                score += finalVal;
+                updateHUD();
+            }
+        });
+
+        hazards.forEach(hz => {
+            if (player.x < hz.x + hz.w && player.x + player.width > hz.x && player.y < hz.y + hz.h && player.y + player.height > hz.y) {
+                // PODER DA DANDARA: IGNORA ARMADILHAS (Retorna sem tomar dano)
+                if (selectedChar === 'Dandara') {
+                    // Efeito visual opcional de anular armadilha poderia vir aqui
+                } else {
+                    playerHit("Cuidado com a armadilha!");
+                }
+            }
+        });
+
+        // FASE 3: Barreira Lança
+        if (currentLevel === 3) {
+            if (player.x >= 1780 && !hasSpear) {
+                player.x = 1780; warningMsg.style.display = 'block';
+            } else { warningMsg.style.display = 'none'; }
+        }
+
+        // FASE 4: IA Boss
+        if (boss.active) {
+            if (boss.x > player.x) { boss.x -= boss.speed; boss.facingLeft = true; }
+            else { boss.x += boss.speed; boss.facingLeft = false; }
+
+            if (player.x < boss.x + boss.width && player.x + player.width > boss.x && player.y < boss.y + boss.height && player.y + player.height > boss.y) {
+                if (hasSpear) {
+                    boss.active = false; alert("A Lança Sagrada expulsou o invasor!"); showQuiz(); 
+                } else {
+                    playerHit("O Capitão te pegou! Faltou a Lança!");
+                }
+            }
+        }
+
+        if (currentLevel < 4 && player.x >= 1800 && (currentLevel !== 3 || hasSpear)) { showQuiz(); }
+
+        camera.x = player.x - 200;
+        if (camera.x < 0) camera.x = 0;
+        if (camera.x > worldWidth - camera.width) camera.x = worldWidth - camera.width;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawBackground(camera.x); // Renderiza cenários realistas dinâmicos
+
+        ctx.save();
+        ctx.translate(-camera.x, 0);
+
+        platforms.forEach(plat => {
+            ctx.fillStyle = (currentLevel === 2) ? '#263238' : '#3e2723'; // Chão muda cor por fase
+            ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+            ctx.fillStyle = (currentLevel === 2) ? '#ff5722' : '#558b2f'; // Topo das plataformas
+            ctx.fillRect(plat.x, plat.y, plat.w, 8);
+        });
+
+        items.forEach(item => {
+            if (!item.collected) {
+                ctx.font = '24px Arial';
+                let icon = '🌽'; 
+                if(item.type === 'Ferramenta') icon = '⚒️';
+                if(item.type === 'Pessoa') icon = '🧑🏾‍🦱';
+                if(item.type === 'Lança') icon = '🔱';
+                ctx.fillText(icon, item.x, item.y);
+            }
+        });
+
+        hazards.forEach(hz => {
+            // Desenho de espinhos metálicos
+            ctx.fillStyle = '#b0bec5'; ctx.beginPath(); 
+            ctx.moveTo(hz.x, hz.y + hz.h); ctx.lineTo(hz.x + hz.w/2, hz.y); ctx.lineTo(hz.x + hz.w, hz.y + hz.h); ctx.fill();
+        });
+
+        if (currentLevel < 4) {
+            ctx.fillStyle = '#ffca28'; ctx.fillRect(1800, 250, 6, 150);
+            ctx.fillStyle = '#d84315'; ctx.fillRect(1806, 250, 40, 25);
+        }
+
+        if (boss.active) { drawBossArt(boss.x, boss.y, boss.facingLeft); }
+
+        drawBlockArtHero(player.x, player.y, selectedChar, player.vx < 0);
+
+        if (currentLevel === 1 && standingTimer > 90) {
+            ctx.fillStyle = '#ff1744'; ctx.font = 'bold 16px Arial'; ctx.fillText("CORRA!", player.x - 5, player.y - 15);
+        }
+
+        if (hasSpear) {
+            ctx.font = '18px Arial';
+            ctx.fillText('🔱', player.x + (player.vx < 0 ? -15 : 25), player.y + 35);
+        }
+
+        ctx.restore();
+    }
+
+    function gameLoop() {
+        update(); draw();
+        if (gameState === 'PLAYING') { requestAnimationFrame(gameLoop); }
+    }
+</script>
+
+</body>
+</html>
