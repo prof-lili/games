@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Palmares: A Jornada da Liberdade - Edição Escolar (V3)</title>
+    <title>Palmares: A Jornada da Liberdade - Edição Escolar (V4)</title>
     <style>
         body { margin: 0; padding: 0; background-color: #0a0f0a; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; overflow: hidden; }
         #game-container { position: relative; width: 800px; height: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 4px solid #ffca28; border-radius: 12px; background: #000; overflow: hidden;}
@@ -43,7 +43,7 @@
             <div class="char-card" onclick="selectCharacter('Zumbi')"><h3>Zumbi</h3><p style="font-size:11px; color:#ffd54f;">Super Velocidade</p></div>
             <div class="char-card" onclick="selectCharacter('Dandara')"><h3>Dandara</h3><p style="font-size:11px; color:#ffd54f;">Anula Armadilhas</p></div>
             <div class="char-card" onclick="selectCharacter('Ganga Zumba')"><h3>Ganga Zumba</h3><p style="font-size:11px; color:#ffd54f;">+1 Vida Extra</p></div>
-            <div class="char-card" onclick="selectCharacter('Acotirene')"><h3>Acotirene</h3><p style="font-size:11px; color:#ffd54f;">Pontos em Dobro</p></div>
+            <div class="char-card" onclick="selectCharacter('Acotirene')"><h3>Acotirene</h3><p style="font-size:11px; color:#ffd54f;">Atrai Alimentos</p></div>
         </div>
     </div>
 
@@ -78,7 +78,6 @@
     let score = 0, currentLevel = 1, selectedChar = '', lives = 1;
     let standingTimer = 0, hasSpear = false;
 
-    // O jogador agora é ligeiramente maior para acomodar a pixel art
     const player = { x: 50, y: 300, width: 34, height: 55, vx: 0, vy: 0, speed: 5, jumpForce: 12, grounded: false };
     const boss = { x: 1200, y: 300, width: 38, height: 60, speed: 3.5, active: false, facingLeft: true };
 
@@ -129,11 +128,10 @@
         // RESET DE ATRIBUTOS
         player.speed = 5; player.jumpForce = 12; lives = 1;
 
-        // NOVOS PODERES APLICADOS
-        if(name === 'Zumbi') { player.speed = 8.5; } // Zumbi: Velocidade
+        if(name === 'Zumbi') { player.speed = 8.5; } 
         else if(name === 'Dandara') { /* Habilidade programada na colisão de espinhos */ } 
         else if(name === 'Ganga Zumba') { lives = 2; } 
-        else if(name === 'Acotirene') { /* Habilidade na coleta de itens */ }
+        else if(name === 'Acotirene') { /* Habilidade programada na atração de itens (física) */ }
 
         document.getElementById('screen-select').style.display = 'none';
         showLevelIntro();
@@ -229,10 +227,6 @@
     window.addEventListener('keyup', e => keys[e.code] = false);
 
     // --- ARTE: DESENHO DETALHADO DOS PERSONAGENS (BLOCK ART) ---
-    /* DICA: Para usar imagens reais do Pinterest no futuro, apague os ctx.fillRect desta função
-       e use ctx.drawImage(suaImagem, x, y, width, height). Exemplo: 
-       let imgDandara = new Image(); imgDandara.src = "LINK_DA_IMAGEM"; */
-       
     function drawBlockArtHero(x, y, char, isFacingLeft) {
         ctx.save();
         if(isFacingLeft) {
@@ -241,51 +235,45 @@
             x = 0; y = 0;
         }
 
-        // Base da pele (Marrom Escuro)
         const skinColor = '#4e342e';
         
         // --- ZUMBI ---
         if(char === 'Zumbi') {
-            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y, 14, 14); // Cabeça
-            ctx.fillStyle = '#b71c1c'; ctx.fillRect(x+10, y+2, 14, 4); // Faixa Vermelha na cabeça
-            ctx.fillStyle = '#111'; ctx.fillRect(x+10, y, 14, 2); // Cabelo curto
-            ctx.fillStyle = skinColor; ctx.fillRect(x+8, y+14, 18, 20); // Tronco sem camisa
-            ctx.fillStyle = '#fff'; ctx.fillRect(x+8, y+34, 18, 20); // Calça branca
-            // Lança/Vara estilizada nas costas
+            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y, 14, 14);
+            ctx.fillStyle = '#b71c1c'; ctx.fillRect(x+10, y+2, 14, 4);
+            ctx.fillStyle = '#111'; ctx.fillRect(x+10, y, 14, 2);
+            ctx.fillStyle = skinColor; ctx.fillRect(x+8, y+14, 18, 20);
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+8, y+34, 18, 20);
             ctx.fillStyle = '#795548'; ctx.fillRect(x+4, y+5, 4, 35);
         }
         // --- DANDARA ---
         else if(char === 'Dandara') {
-            ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x+17, y+8, 12, 0, Math.PI*2); ctx.fill(); // Cabelo Black Power gigante
-            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+4, 14, 10); // Rosto
-            ctx.fillStyle = '#fbc02d'; ctx.fillRect(x+8, y+14, 18, 16); // Blusa amarela
-            ctx.fillStyle = '#fff'; ctx.fillRect(x+6, y+30, 22, 24); // Calça capoeira larga
-            // Faixa na cintura
+            ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x+17, y+8, 12, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+4, 14, 10);
+            ctx.fillStyle = '#fbc02d'; ctx.fillRect(x+8, y+14, 18, 16);
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+6, y+30, 22, 24);
             ctx.fillStyle = '#1b5e20'; ctx.fillRect(x+6, y+28, 22, 4);
         }
         // --- GANGA ZUMBA ---
         else if(char === 'Ganga Zumba') {
-            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+6, 14, 12); // Rosto
-            ctx.fillStyle = '#fbc02d'; ctx.fillRect(x+8, y, 18, 6); // Coroa/Adorno dourado
-            ctx.fillStyle = '#d32f2f'; ctx.fillRect(x+6, y+18, 22, 30); // Túnica real vermelha
-            ctx.fillStyle = '#ffca28'; ctx.fillRect(x+14, y+18, 6, 30); // Detalhe central dourado da roupa
-            ctx.fillStyle = '#fff'; ctx.fillRect(x+10, y+48, 14, 6); // Calça
+            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+6, 14, 12);
+            ctx.fillStyle = '#fbc02d'; ctx.fillRect(x+8, y, 18, 6);
+            ctx.fillStyle = '#d32f2f'; ctx.fillRect(x+6, y+18, 22, 30);
+            ctx.fillStyle = '#ffca28'; ctx.fillRect(x+14, y+18, 6, 30);
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+10, y+48, 14, 6);
         }
         // --- ACOTIRENE ---
         else if(char === 'Acotirene') {
-            ctx.fillStyle = '#fff'; ctx.fillRect(x+8, y, 18, 12); // Turbante Branco volumoso
-            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+12, 14, 8); // Rosto
-            ctx.fillStyle = '#8e24aa'; ctx.fillRect(x+4, y+20, 26, 34); // Vestido roxo longo
-            ctx.fillStyle = '#ab47bc'; ctx.fillRect(x+4, y+45, 26, 9); // Barra do vestido
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+8, y, 18, 12);
+            ctx.fillStyle = skinColor; ctx.fillRect(x+10, y+12, 14, 8);
+            ctx.fillStyle = '#8e24aa'; ctx.fillRect(x+4, y+20, 26, 34);
+            ctx.fillStyle = '#ab47bc'; ctx.fillRect(x+4, y+45, 26, 9);
         }
 
-        // Olhos fixos para todos
         ctx.fillStyle = '#fff';
-        ctx.fillRect(x+18, y+(char==='Acotirene'?14:char==='Ganga Zumba'?10:4), 4, 4); // Olho
+        ctx.fillRect(x+18, y+(char==='Acotirene'?14:char==='Ganga Zumba'?10:4), 4, 4);
         
         ctx.restore();
-
-        // Nome do Herói
         ctx.fillStyle = '#ffffff'; ctx.font = '10px Arial'; ctx.fillText(char, (isFacingLeft?0:x) - 5, y - 5);
     }
 
@@ -293,42 +281,36 @@
         ctx.save();
         if(isFacingLeft) { ctx.translate(x + boss.width, y); ctx.scale(-1, 1); x = 0; y = 0; }
         
-        // Capitão do Mato: Uniforme Colonial
-        ctx.fillStyle = '#37474f'; ctx.fillRect(x+2, y-5, 34, 10); // Chapéu aba larga
-        ctx.fillStyle = '#ffccbc'; ctx.fillRect(x+10, y+5, 18, 14); // Rosto pele clara
-        ctx.fillStyle = '#111'; ctx.fillRect(x+10, y+15, 18, 5); // Barba
-        ctx.fillStyle = '#1a237e'; ctx.fillRect(x+6, y+19, 26, 26); // Casacão azul marinho
-        ctx.fillStyle = '#fff'; ctx.fillRect(x+14, y+19, 10, 26); // Camisa branca interna
-        ctx.fillStyle = '#212121'; ctx.fillRect(x+8, y+45, 22, 15); // Botas de couro preto
-        
-        // Olho bravo
+        ctx.fillStyle = '#37474f'; ctx.fillRect(x+2, y-5, 34, 10);
+        ctx.fillStyle = '#ffccbc'; ctx.fillRect(x+10, y+5, 18, 14);
+        ctx.fillStyle = '#111'; ctx.fillRect(x+10, y+15, 18, 5);
+        ctx.fillStyle = '#1a237e'; ctx.fillRect(x+6, y+19, 26, 26);
+        ctx.fillStyle = '#fff'; ctx.fillRect(x+14, y+19, 10, 26);
+        ctx.fillStyle = '#212121'; ctx.fillRect(x+8, y+45, 22, 15);
         ctx.fillStyle = '#b71c1c'; ctx.fillRect(x+22, y+9, 4, 3);
         
         ctx.restore();
         ctx.fillStyle = '#ff5252'; ctx.font = 'bold 11px Arial'; ctx.fillText("CAPITÃO", (isFacingLeft?0:x) - 5, y - 10);
     }
 
-    // --- ARTE: CENÁRIOS DETALHADOS ---
     function drawBackground(cameraX) {
-        if(currentLevel === 1) { // FLORESTA
+        if(currentLevel === 1) { 
             let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             grad.addColorStop(0, '#1b5e20'); grad.addColorStop(1, '#aed581');
             ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            // Árvores em parallax simples
             ctx.fillStyle = '#3e2723';
             for(let i=0; i<20; i++) {
                 let treeX = (i * 150) - (cameraX * 0.5);
-                ctx.fillRect(treeX, 0, 40, 400); // Tronco
+                ctx.fillRect(treeX, 0, 40, 400); 
                 ctx.fillStyle = '#2e7d32';
-                ctx.beginPath(); ctx.arc(treeX+20, 100, 80, 0, Math.PI*2); ctx.fill(); // Folhas
+                ctx.beginPath(); ctx.arc(treeX+20, 100, 80, 0, Math.PI*2); ctx.fill(); 
                 ctx.fillStyle = '#3e2723';
             }
         } 
-        else if(currentLevel === 2) { // MONTANHAS E FORJAS
+        else if(currentLevel === 2) { 
             let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             grad.addColorStop(0, '#3e2723'); grad.addColorStop(1, '#d84315');
             ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            // Montanhas cinzas
             ctx.fillStyle = '#455a64';
             ctx.beginPath();
             for(let i=0; i<10; i++) {
@@ -337,12 +319,10 @@
             }
             ctx.fill();
         }
-        else if(currentLevel === 3) { // VILA / NOITE
+        else if(currentLevel === 3) { 
             ctx.fillStyle = '#0d47a1'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            // Estrelas
             ctx.fillStyle = '#fff';
             for(let i=0; i<50; i++) { ctx.fillRect((i*97)%canvas.width, (i*31)%250, 2, 2); }
-            // Paliçadas (Muro de madeira)
             ctx.fillStyle = '#5d4037';
             for(let i=0; i<40; i++) {
                 let px = (i * 60) - (cameraX * 0.8);
@@ -350,11 +330,10 @@
                 ctx.beginPath(); ctx.moveTo(px, 250); ctx.lineTo(px+10, 220); ctx.lineTo(px+20, 250); ctx.fill();
             }
         }
-        else if(currentLevel === 4) { // CONFRONTO - PÔR DO SOL
+        else if(currentLevel === 4) { 
             let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             grad.addColorStop(0, '#b71c1c'); grad.addColorStop(1, '#ff9800');
             ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            // Sol gigante
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.beginPath(); ctx.arc(400, 250, 150, 0, Math.PI*2); ctx.fill();
         }
@@ -374,7 +353,6 @@
             player.grounded = false;
         }
 
-        // FASE 1: Se ficar parado sequestra
         if (currentLevel === 1) {
             if (player.vx === 0 && player.grounded) {
                 standingTimer++;
@@ -399,34 +377,49 @@
         });
 
         items.forEach(item => {
-            if (!item.collected && player.x < item.x + 20 && player.x + player.width > item.x - 20 && player.y < item.y + 20 && player.y + player.height > item.y - 20) {
-                item.collected = true;
-                if (item.type === 'Lança') { hasSpear = true; }
-                let finalVal = (selectedChar === 'Acotirene') ? item.val * 2 : item.val;
-                score += finalVal;
-                updateHUD();
+            if (!item.collected) {
+                
+                // PODER DA ACOTIRENE: ATRAIR ALIMENTOS/ITENS (Efeito Magnético)
+                if (selectedChar === 'Acotirene') {
+                    let pX = player.x + player.width / 2;
+                    let pY = player.y + player.height / 2;
+                    let dx = pX - item.x;
+                    let dy = pY - item.y;
+                    
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Se o item estiver a menos de 150px de distância, ele se move para a Acotirene
+                    if (dist < 150) {
+                        item.x += dx * 0.05;
+                        item.y += dy * 0.05;
+                    }
+                }
+
+                // Lógica de colisão para coletar
+                if (player.x < item.x + 20 && player.x + player.width > item.x - 20 && player.y < item.y + 20 && player.y + player.height > item.y - 20) {
+                    item.collected = true;
+                    if (item.type === 'Lança') { hasSpear = true; }
+                    
+                    score += item.val; // Valor normal do item 
+                    updateHUD();
+                }
             }
         });
 
         hazards.forEach(hz => {
             if (player.x < hz.x + hz.w && player.x + player.width > hz.x && player.y < hz.y + hz.h && player.y + player.height > hz.y) {
-                // PODER DA DANDARA: IGNORA ARMADILHAS (Retorna sem tomar dano)
-                if (selectedChar === 'Dandara') {
-                    // Efeito visual opcional de anular armadilha poderia vir aqui
-                } else {
+                if (selectedChar !== 'Dandara') {
                     playerHit("Cuidado com a armadilha!");
                 }
             }
         });
 
-        // FASE 3: Barreira Lança
         if (currentLevel === 3) {
             if (player.x >= 1780 && !hasSpear) {
                 player.x = 1780; warningMsg.style.display = 'block';
             } else { warningMsg.style.display = 'none'; }
         }
 
-        // FASE 4: IA Boss
         if (boss.active) {
             if (boss.x > player.x) { boss.x -= boss.speed; boss.facingLeft = true; }
             else { boss.x += boss.speed; boss.facingLeft = false; }
@@ -450,15 +443,15 @@
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        drawBackground(camera.x); // Renderiza cenários realistas dinâmicos
+        drawBackground(camera.x);
 
         ctx.save();
         ctx.translate(-camera.x, 0);
 
         platforms.forEach(plat => {
-            ctx.fillStyle = (currentLevel === 2) ? '#263238' : '#3e2723'; // Chão muda cor por fase
+            ctx.fillStyle = (currentLevel === 2) ? '#263238' : '#3e2723'; 
             ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-            ctx.fillStyle = (currentLevel === 2) ? '#ff5722' : '#558b2f'; // Topo das plataformas
+            ctx.fillStyle = (currentLevel === 2) ? '#ff5722' : '#558b2f'; 
             ctx.fillRect(plat.x, plat.y, plat.w, 8);
         });
 
@@ -474,7 +467,6 @@
         });
 
         hazards.forEach(hz => {
-            // Desenho de espinhos metálicos
             ctx.fillStyle = '#b0bec5'; ctx.beginPath(); 
             ctx.moveTo(hz.x, hz.y + hz.h); ctx.lineTo(hz.x + hz.w/2, hz.y); ctx.lineTo(hz.x + hz.w, hz.y + hz.h); ctx.fill();
         });
